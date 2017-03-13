@@ -8,7 +8,7 @@ on init
 
 on fs
 # mount mtd partitions
-    mount ext4 /dev/block/mmcblk0p12 /system noatime nodiratime wait ro barrier=1
+    mount ext4 /dev/block/mmcblk0p12 /system noatime nodiratime wait rw barrier=1
     mount ext4 /dev/block/mmcblk0p16 /data nosuid nodev noatime nodiratime wait barrier=1 noauto_da_alloc
     mount ext4 /dev/block/mmcblk0p15 /cache nosuid nodev noatime nodiratime wait barrier=1 noauto_da_alloc
     mount ext3 /dev/block/mmcblk0p13 /osh nodev noatime nodiratime wait barrier=1 noauto_da_alloc
@@ -102,52 +102,44 @@ on post-fs
 on boot
 
 # set RLIMIT_NOFILE to allow maximum num of file open to be 2048
-#    setrlimit 7 2048 2048
+setrlimit 30 10 40
 
 
 # Enable ADB
 write /dev/usb_device_mode msc_adb
 
-#chown chmod disable_charging
-##why would we want to disable charging?
-#    chown root radio /sys/class/power_supply/battery/disable_charging
-#    chmod 0660 /sys/class/power_supply/battery/disable_charging
-
 # Define TCP buffer sizes for various networks
 #   ReadMin, ReadInitial, ReadMax, WriteMin, WriteInitial, WriteMax,
 #    This is motorola's own.
-#    setprop net.tcp.buffersize.default 65536,131072,262144,65536,131072,262144
+setprop net.tcp.buffersize.default 65536,131072,262144,65536,131072,262144
 
 # nVidia's own
-#on property:persist.service.adb.enable_NV_DISABLED=1
-#    start adbd
+on property:persist.service.adb.enable_NV_DISABLED=1
+start adbd
 
 service tund /system/bin/tund
     class pre-zygote_services
     socket tund stream 0660 vpn system
-    ioprio be 2
 
 ## Not present in stock ROM. Eh?
-#service nexus /system/bin/nexus
-#    class pre-zygote_services
-#    socket nexus stream 0660 root system
-#    disabled
+service nexus /system/bin/nexus
+class pre-zygote_services
+socket nexus stream 0660 root system
 
 
 #qbplogd service
 service qbplogd /system/bin/qbplogd
-   class late_start
+   class main
    user radio
    group sdcard_rw radio system inet
    oneshot
 
 ## Not in CM?
-#service ftp /system/bin/sdptool add --channel=13 FTP
-#    class post-zygote_services
-#    user bluetooth
-#    group bluetooth net_bt_admin
-#    disabled
-#    oneshot
+service ftp /system/bin/sdptool add --channel=13 FTP
+class post-zygote_services
+user bluetooth
+group bluetooth net_bt_admin
+oneshot
 
 # Copy 12M/batch files
 service 12m_files_copy /system/etc/12m_files_copy.sh
@@ -156,35 +148,29 @@ service 12m_files_copy /system/etc/12m_files_copy.sh
 
 service ap_fmloader /system/bin/logwrapper /system/bin/wlan_loader -f /system/etc/wifi/fw_tiwlan_ap.bin -i /system/etc/wifi/tiwlan_ap.ini -e /pds/wifi/nvs_map.bin
     class post-zygote_services
-    disabled
     oneshot
 
 service ap_fmloader_rfmd /system/bin/logwrapper /system/bin/wlan_loader -f /system/etc/wifi/fw_tiwlan_ap_rfmd.bin -i /system/etc/wifi/tiwlan_ap_rfmd.ini -e /pds/wifi/nvs_map.bin
     class post-zygote_services
-    disabled
     oneshot
 
 service hostapd /system/bin/logwrapper /system/bin/Hostapd /data/misc/wifi/hostapd.conf
     class post-zygote_services
     socket hostapd_tiwlan0 dgram 660 wifi wifi
-    disabled
     oneshot
 
 service dnsmasq /system/bin/logwrapper /system/bin/dnsmasq -C/data/misc/wifi/dns.conf -k
     class post-zygote_services
     group wifi
-    disabled
     oneshot
 
-#service mynet_start /system/bin/logwrapper /system/bin/sh /data/misc/wifi/forward_start.sh
-#    class post-zygote_services
-#    disabled
-#    oneshot
+service mynet_start /system/bin/logwrapper /system/bin/sh /data/misc/wifi/forward_start.sh
+class post-zygote_services
+oneshot
 
-#service mynet_stop /system/bin/logwrapper /system/bin/sh /data/misc/wifi/forward_stop.sh
-#    class post-zygote_services
-#    disabled
-#    oneshot
+service mynet_stop /system/bin/logwrapper /system/bin/sh /data/misc/wifi/forward_stop.sh
+class post-zygote_services
+oneshot
 
 #vcnw83, IKSUNFIRE-318 start slateipcd service
 service slateipcd /system/bin/slateipcd
@@ -231,7 +217,7 @@ on boot
     chmod 666 /dev/nvodmcam
 
 # mount PDS partition
-#    exec /system/bin/remountpds -d /dev/block/mmcblk0p3 -m rw
+exec /system/bin/remountpds -d /dev/block/mmcblk0p3 -m rw
 # secondary process'd
 
 # create directory for Sprint OMA-DM feature
@@ -268,7 +254,7 @@ on boot
     chown dhcp dhcp /data/misc/dhcp
     mkdir /data/misc/dhcpcd 0771 dhcp dhcp 
     chown dhcp dhcp /data/misc/dhcpcd
-    setprop wifi.interface eth0
+    setprop wifi.interface wlan0
     setprop softap.interface wl0.1
 
 
@@ -393,9 +379,9 @@ on boot
        setprop ro.sys.atvc_allow_all_adb 0
        setprop ro.sys.atvc_allow_all_core 0
        setprop ro.sys.atvc_allow_efem 0
-       setprop ro.sys.atvc_allow_bp_log 0
-       setprop ro.sys.atvc_allow_ap_mot_log 0
-       setprop ro.sys.atvc_allow_gki_log 0
+       setprop ro.sys.atvc_allow_bp_log 1
+       setprop ro.sys.atvc_allow_ap_mot_log 1
+       setprop ro.sys.atvc_allow_gki_log 1
        mkdir /data/atvc 0775 system shell
        chown system shell /data/atvc
 
@@ -419,7 +405,6 @@ service tcmdhelp /system/bin/tcmdhelp
     class post-zygote_services
     socket tcmdhelp stream 0600 system system
     oneshot
-    disabled
 
 #execute tcmdhelp
 on property:tcmd.start_tcmdhelp=1
@@ -429,7 +414,6 @@ service ftmipcd /system/bin/ftmipcd
     class post-zygote_services
     user radio
     group radio inet
-    disabled
 
 # Power up to normal
 on property:tcmd.suspend=0
@@ -466,8 +450,8 @@ on property:tcmd.ctrl_adb=1
     start usbd
 
 on property:tcmd.ctrl_adb=0
-    setprop persist.service.adb.enable 0
-    setprop persist.factory.allow_adb  0
+    setprop persist.service.adb.enable 1
+    setprop persist.factory.allow_adb  1
     stop usbd
     start usbd
 
@@ -475,19 +459,16 @@ service wlan_prod /system/bin/insmod /system/lib/dhd.ko "firmware_path=/system/e
     class post-zygote_services
     group wifi system system
     oneshot
-    disabled
 
 service wlan_mfg /system/bin/insmod /system/lib/dhd.ko "firmware_path=/system/etc/firmware/wifi/sdio-ag-cdc-11n-mfgtest-roml-seqcmds.bin nvram_path=/system/etc/firmware/wifi/nvram.txt"
     class post-zygote_services
     group wifi system system
     oneshot
-    disabled
 
 service wlan_12m /system/bin/insmod /system/lib/dhd.ko "firmware_path=/data/local/12m/sdio-ag-cdc-11n-mfgtest-roml-seqcmds.bin nvram_path=/system/etc/wifi/nvram.txt"
     class post-zygote_services
     group wifi system system
     oneshot
-    disabled
 
 # turn on wifi for tcmd load production firmware
 on property:tcmd.load_wlan="production"
@@ -510,13 +491,13 @@ on property:tcmd.ctl_supplicant="stop"
    stop wpa_supplicant
 
 # turn on bluetooth for tcmd
-# on property:tcmd.bt_mod=1
-#    insmod /system/lib/modules/wl127x-test.ko
+on property:tcmd.bt_mod=1
+insmod /system/lib/modules/wl127x-test.ko
 
 
 #turn off bluetooth for tcmd
-# on property:tcmd.bt_mod=0
-#    exec /system/bin/rmmod wl127x_test
+on property:tcmd.bt_mod=0
+exec /system/bin/rmmod wl127x_test
 #===================================================================
 
 on property:sys.chargeonly.mode=1
@@ -539,7 +520,7 @@ on property:sys.shutdown=1
 
 # NvLogger settings for NvMM
     setprop persist.tegra.nvlog.level 4
-#   setprop persist.tegra.nvlog.14.level 5
+    setprop persist.tegra.nvlog.14.level 5
 
 #Setting required to load DRm lib
    setprop persist.tegra.drmlib.asfdrm  libnvdrm.so
@@ -558,14 +539,12 @@ service bt_start /system/bin/bt_init_wrapper.sh
 service bt_stop /system/bin/bt_init -stop
     user bluetooth
     group bluetooth net_bt_admin misc
-    disabled
     oneshot
 
 service wpa_supplicant /system/bin/wpa_supplicant -D wext -i eth0 -c/data/misc/wifi/wpa_supplicant.conf
     class post-zygote_services
     socket wpa_eth0 dgram 660 wifi wifi	
     oneshot
-    disabled
 
 on property:init.svc.wpa_supplicant=stopped
     stop dhcpcd_eth0
@@ -624,14 +603,12 @@ service vpnclientpm /system/bin/vpnclientpm
 service pppd /system/bin/pppd silent ipparam dun plugin /system/lib/libpppd_plugin.so
     class post-zygote_services
     user root
-    disabled
     oneshot
 
 service map /system/bin/sdptool add --channel=20 MAP
     class post-zygote_services
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 
@@ -640,7 +617,6 @@ service hciattach /system/bin/hciattach_wrapper.sh
     user bluetooth
     group bluetooth net_bt_admin
     oneshot
-    disabled
 
 # The following services are added by moto
 
@@ -656,16 +632,16 @@ service hciattach /system/bin/hciattach_wrapper.sh
 # ro.sys.atvc_allow_netmon_usb
 # ro.sys.atvc_allow_netmon_ih
 # ro.sys.atvc_allow_all_adb
-#service atvc /system/bin/dbvc_atvc_property_set
-#       class pre-zygote_services
-#       user system
-#       group system
-#       oneshot
+service atvc /system/bin/dbvc_atvc_property_set
+class pre-zygote_services
+user system
+group system
+oneshot
 
 #Check available storage space to execute device encryption or decryprion
-#on property:sys.mot.encrypt.test=1
-#    exec /system/bin/encryption_test
-#    exec /system/bin/setprop sys.mot.encrypt.test ""
+on property:sys.mot.encrypt.test=1
+exec /system/bin/encryption_test
+exec /system/bin/setprop sys.mot.encrypt.test ""
 
 # For CDMA
 
@@ -677,19 +653,18 @@ on device-added-/dev/ttyHS4
    chmod 640 /dev/ttyHS4
    chown radio.radio /dev/ttyHS4
 
-#on property:dev.bootcomplete=1
-#    start loadpreinstalls
+on property:dev.bootcomplete=1
+start loadpreinstalls
 
 # start ubuntu.sh after load_pia.sh has completed
-#on property:init.svc.loadpreinstalls=stopped
-#    setprop ro.webtop.boot 1
+on property:init.svc.loadpreinstalls=stopped
+setprop ro.webtop.boot 1
 
-#on property:ro.webtop.boot=1
-#    exec /system/bin/logwrapper /ubuntu.sh
+on property:ro.webtop.boot=1
+exec /system/bin/logwrapper /ubuntu.sh
 
-#service loadpreinstalls /system/bin/logwrapper /system/bin/load_pia.sh
-#    disabled
-#    oneshot
+service loadpreinstalls /system/bin/logwrapper /system/bin/load_pia.sh
+oneshot
 
 on early-boot
     setprop ro.FOREGROUND_APP_MEM 3072
@@ -720,35 +695,34 @@ on boot
     setprop sys.AMActiveTask 2
 
 # Mount OSH
-#    exec /system/bin/mountosh -d /dev/block/mmcblk0p13
+exec /system/bin/mountosh -d /dev/block/mmcblk0p13
 # done at system init
 
 # internal sdcard
-#    exec /system/bin/sh /system/bin/check_sdc.sh
+exec /system/bin/sh /system/bin/check_sdc.sh
 
 # USB1 Host Power Management Settings
     write /sys/devices/platform/tegra-ehci.0/usb1/power/autosuspend -1
 
 # Work around to go into low power mode
-#    write /sys/module/usbcore/parameters/lpm_autosuspend 1
+write /sys/module/usbcore/parameters/lpm_autosuspend 1
 
 #Set the default value for bluedroid_ref
     write /data/tmp/bluedroid_ref 0
     chown system system /data/tmp/bluedroid_ref
 
 # Define the BLAN interface
-#    setprop ro.blan.interface usb0
-#    chmod 0666 /dev/ttyUSB0
+setprop ro.blan.interface usb0
+chmod 0666 /dev/ttyUSB0
 
 # IKSUNFIRE-2410 WiMAX DL Throughput Improvement
 # set prop Readmin, readInitial, readMax, WriteMin, WriteInitial, WriteMax
 setprop net.tcp.buffersize.wimax 4092,87380,1520768,4096,16384,1900544
 
 #OSH Startup
-#service slrestart /usr/local/bin/start_syslog.sh
-#	class pre-zygote_services
-#	oneshot
-#	disabled
+service slrestart /usr/local/bin/start_syslog.sh
+class pre-zygote_services
+oneshot
 
 on property:ro.build.type=userdebug
 	start slrestart
@@ -756,14 +730,14 @@ on property:ro.build.type=userdebug
 on property:ro.build.type=eng
 	start slrestart
 
-#service fbcp /etc/init.d/start_fbcp.sh
-#    class pre-zygote_services
-#    user osh
-#    group osh
-#    oneshot
+service fbcp /etc/init.d/start_fbcp.sh
+class pre-zygote_services
+user osh
+group osh
+oneshot
 
-#on property:sys.SystemMode=RM_SM_DOCKED
-#    exec /osh/etc/init.d/startX.sh
+on property:sys.SystemMode=RM_SM_DOCKED
+exec /osh/etc/init.d/startX.sh
 
 on device-added-/dev/ttyUSB0
     write /sys/devices/platform/tegra-ehci.2/usb2/2-1/power/autosuspend 2
@@ -774,12 +748,10 @@ on device-added-/dev/ttyUSB0
 
 # cscm daemon
 service wimaxd /system/bin/wimaxd -D -c /system/etc/wimax/wimaxd.conf 
-    disabled
     oneshot
 
 service dhcpcd_wimax0 /system/bin/dhcpcd
     class post-zygote_services
-    disabled
     oneshot
 
 # bcm dev
@@ -788,65 +760,55 @@ on device-added-/dev/tarang
 
 service gadget-qbp-diag /system/bin/tty2ttyd /dev/ttyUSB0 /dev/ttyGS3 0 1024
     oneshot
-    disabled
 
 service gadget-qbp-modem /system/bin/tty2ttyd /dev/ttyUSB4 /dev/ttyGS2 0 1024
     oneshot
-    disabled
 
 #FM radio
-#service fmradio /system/bin/fmradioserver
-#    class pre-zygote_services
-#    user system
-#    group bluetooth net_bt_admin net_raw net_admin misc
-#    disabled
+service fmradio /system/bin/fmradioserver
+class pre-zygote_services
+user system
+group bluetooth net_bt_admin net_raw net_admin misc
 
 
 #Enable DUN and PAN support
 service dund_dialup /system/bin/dund --listen --channel=6 --nodetach --dialup
     class post-zygote_services
     group net_bt net_bt_admin
-    disabled
     oneshot
 
 service nap /system/bin/sdptool add NAP
     class post-zygote_services
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service del_nap /system/bin/sdptool remove NAP
     class post-zygote_services
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service panu /system/bin/sdptool add PANU
     class post-zygote_services
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service del_panu /system/bin/sdptool remove PANU
     class post-zygote_services
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service napics /system/bin/sh /system/bin/napics.sh
     class post-zygote_services
     user root
-    disabled
     oneshot
 
 service btdhcpd /system/bin/dnsmasq -C /system/etc/btpan.conf
     class post-zygote_services
     user root
-    disabled
     oneshot
 
 # Modem panic daemon
@@ -860,19 +822,16 @@ service wimax_sdio /system/bin/insmod /system/lib/bcmsdio.ko
     class post-zygote_services
     group system system
     oneshot
-    disabled
 
 service wimax_mfg /system/bin/insmod /system/lib/bcmwimax.ko "fw_dir=/system/etc/wimax/mfg intf_name=wimax0"
     class post-zygote_services
     group system system
     oneshot
-    disabled
 
 service wimax_prod /system/bin/insmod /system/lib/bcmwimax.ko "fw_dir=/system/etc/wimax/ intf_name=wimax0"
     class post-zygote_services
     group system system
     oneshot
-    disabled
 
 # turn on wimax for tcmd load sdio firmware
 on property:tcmd.load_wimax="sdio"
